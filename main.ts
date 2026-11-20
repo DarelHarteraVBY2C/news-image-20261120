@@ -1,70 +1,86 @@
-// news-image-20261120: the front page is entry.jpg next to this file.
-// This program checks it is a complete 1024x1024 JPEG under 1 MiB and
-// copies it to the output directory as entry.png, verifying the copy
-// is byte-identical, so two runs produce the same bytes.
+// news-image-20261120: koran satu halaman untuk Jumat 20 November 2026.
+// Gambarnya adalah entry.jpg di samping file ini. Program ini memeriksa
+// bahwa gambar itu JPEG 1024x1024 yang lengkap dan di bawah 1 MiB, lalu
+// menyalinnya ke direktori output sebagai entry.png dan memeriksa ulang
+// salinannya byte-per-byte, supaya dua kali jalan menghasilkan byte yang sama.
 //
-// Run locally with: mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+// Menjalankan sendiri: mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import * as berkas from 'node:fs';
+import * as kripto from 'node:crypto';
+import * as jalur from 'node:path';
+import { fileURLToPath as ubahUrlKeJalur } from 'node:url';
 
-const ROOT = dirname(fileURLToPath(import.meta.url));
-const IMAGE = 'entry.jpg';
-const LIMIT = 1048576;
-const EDGE = 1024;
+// Folder tempat main.ts berada.
+const FOLDER = jalur.dirname(ubahUrlKeJalur(import.meta.url));
+const NAMA = 'entry.jpg';
+const BATAS = 1048576; // 1 MiB
+const SISI = 1024;
 
-type Size = { w: number; h: number };
+type Ukuran = { lebar: number; tinggi: number };
 
-/** Dimensions from the first SOF0/SOF2 segment, or undefined when absent. */
-function jpegDimensions(data: Buffer): Size | undefined {
-  if (data.length < 4 || data[0] !== 0xff || data[1] !== 0xd8) return undefined;
-  let at = 2;
-  while (at + 4 <= data.length) {
-    if (data[at] !== 0xff) return undefined;
-    const mark = data[at + 1];
-    if (mark === 0xd9) return undefined;
-    if (mark === 0x01 || (mark >= 0xd0 && mark <= 0xd7)) {
-      at += 2;
+// Ukuran dari segmen SOF0/SOF2 pertama; undefined bila bukan JPEG atau
+// tidak ada segmen ukuran sebelum penanda akhir gambar.
+function ukurJpeg(isi: Buffer): Ukuran | undefined {
+  if (isi.length < 4 || isi[0] !== 0xff || isi[1] !== 0xd8) return undefined;
+  let pos = 2;
+  let ketemu: Ukuran | undefined;
+  while (pos + 4 <= isi.length && ketemu === undefined) {
+    if (isi[pos] !== 0xff) break;
+    const kode = isi[pos + 1];
+    if (kode === 0xd9) break; // EOI: akhir gambar, ukuran tidak ketemu
+    if (kode === 0x01 || (kode >= 0xd0 && kode <= 0xd7)) {
+      pos += 2;
       continue;
     }
-    const segLen = data.readUInt16BE(at + 2);
-    if (segLen < 2 || at + 2 + segLen > data.length) return undefined;
-    if (mark === 0xc0 || mark === 0xc2) {
-      return { h: data.readUInt16BE(at + 5), w: data.readUInt16BE(at + 7) };
+    const panjang = isi.readUInt16BE(pos + 2);
+    if (panjang < 2 || pos + 2 + panjang > isi.length) break;
+    if (kode === 0xc0 || kode === 0xc2) {
+      ketemu = { tinggi: isi.readUInt16BE(pos + 5), lebar: isi.readUInt16BE(pos + 7) };
+    } else {
+      pos += 2 + panjang;
     }
-    at += 2 + segLen;
   }
-  return undefined;
+  return ketemu;
 }
 
-function die(text: string, code: number): never {
-  process.stderr.write(`news-image-20261120: ${text}\n`);
-  process.exit(code);
+function sidikJari(isi: Buffer): string {
+  return kripto.createHash('sha256').update(isi).digest('hex');
 }
 
-const source = join(ROOT, IMAGE);
-if (!existsSync(source)) die(`${IMAGE} not found beside main.ts; run compose.py first`, 2);
-const bytes = readFileSync(source);
-if (bytes.length > LIMIT) die(`${IMAGE} is ${bytes.length} bytes, over the ${LIMIT} byte limit`, 1);
-const size = jpegDimensions(bytes);
-if (size === undefined) die(`${IMAGE} has no JPEG size marker`, 1);
-if (size.w !== EDGE || size.h !== EDGE) die(`${IMAGE} is ${size.w}x${size.h}, expected ${EDGE}x${EDGE}`, 1);
+function berhenti(pesan: string, kode: number): never {
+  process.stderr.write(`news-image-20261120: ${pesan}\n`);
+  process.exit(kode);
+}
 
-const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
-mkdirSync(outDir, { recursive: true });
-const dest = join(outDir, 'entry.png');
-copyFileSync(source, dest);
-const copied = readFileSync(dest);
-const digest = (b: Buffer): string => createHash('sha256').update(b).digest('hex');
-if (copied.length !== bytes.length || digest(copied) !== digest(bytes)) {
-  die(`copy at ${dest} is not byte-identical to ${IMAGE}`, 1);
+const sumber = jalur.join(FOLDER, NAMA);
+if (!berkas.existsSync(sumber)) {
+  berhenti(`tidak ada ${NAMA} di samping main.ts; jalankan compose.py dulu`, 2);
 }
-// Re-read the copy's own size marker: a truncated or swapped destination
-// fails here even when the byte count happens to match.
-const copiedSize = jpegDimensions(copied);
-if (copiedSize === undefined || copiedSize.w !== EDGE || copiedSize.h !== EDGE) {
-  die(`copy at ${dest} does not parse as a ${EDGE}x${EDGE} JPEG`, 1);
+const asli = berkas.readFileSync(sumber);
+if (asli.length > BATAS) {
+  berhenti(`${NAMA} besarnya ${asli.length} byte, melewati batas ${BATAS} byte`, 1);
 }
-process.stdout.write(`news-image-20261120: wrote ${dest} (${copied.length} bytes, 1024x1024 JPEG, sha256 ${digest(copied).slice(0, 16)}...)\n`);
+const ukuran = ukurJpeg(asli);
+if (ukuran === undefined) {
+  berhenti(`${NAMA} tidak punya penanda ukuran JPEG`, 1);
+}
+if (ukuran.lebar !== SISI || ukuran.tinggi !== SISI) {
+  berhenti(`${NAMA} ukurannya ${ukuran.lebar}x${ukuran.tinggi}, harusnya ${SISI}x${SISI}`, 1);
+}
+
+const folderKeluar = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+berkas.mkdirSync(folderKeluar, { recursive: true });
+const tujuan = jalur.join(folderKeluar, 'entry.png');
+berkas.writeFileSync(tujuan, asli);
+const salinan = berkas.readFileSync(tujuan);
+if (salinan.length !== asli.length || sidikJari(salinan) !== sidikJari(asli)) {
+  berhenti(`salinan di ${tujuan} tidak sama persis dengan ${NAMA}`, 1);
+}
+// Baca lagi penanda ukuran dari salinannya sendiri: tujuan yang terpotong
+// atau tertukar akan ketahuan di sini walau jumlah byte-nya kebetulan sama.
+const ukuranSalinan = ukurJpeg(salinan);
+if (ukuranSalinan === undefined || ukuranSalinan.lebar !== SISI || ukuranSalinan.tinggi !== SISI) {
+  berhenti(`salinan di ${tujuan} tidak terbaca sebagai JPEG ${SISI}x${SISI}`, 1);
+}
+process.stdout.write(`news-image-20261120: menulis ${tujuan} (${salinan.length} byte, JPEG 1024x1024, sha256 ${sidikJari(salinan).slice(0, 16)}...)\n`);
