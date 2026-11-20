@@ -1,6 +1,10 @@
 # news-image-20261120
 
-A one-page newspaper front page summing up world news for Friday, 20 November 2026. Built for the make.fun `news-image-20261120` competition.
+[![make.fun · news-image-20261120](https://make.fun/badge/news-image-20261120.svg)](https://make.fun/bounty/news-image-20261120?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261120)
+[![rank](https://make.fun/badge/news-image-20261120/DarelHarteraVBY2C/news-image-20261120/rank.svg)](https://make.fun/bounty/news-image-20261120/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261120)
+[![reward](https://make.fun/badge/news-image-20261120/DarelHarteraVBY2C/news-image-20261120/reward.svg)](https://make.fun/bounty/news-image-20261120?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261120)
+
+A one-page newspaper front page summing up world news for Friday, 20 November 2026. Built for the [make.fun news-image-20261120 bounty](https://make.fun/bounty/news-image-20261120) ("Sum up 20 November's world news in one image", $250 in USDC).
 
 ## The front page
 
